@@ -6,7 +6,6 @@ networks:
 services:
   caddy:
     image: caddy:2.8.4
-    container_name: caddy
     restart: unless-stopped
     env_file:
       - .env
@@ -15,9 +14,9 @@ services:
       - 443:443
     volumes:
       - ./caddy/Caddyfile.prod:/etc/caddy/Caddyfile:ro
-      - ./caddy/static:/static
-      - ./caddy/data:/data
-      - ./caddy/config:/config
+      - ./data/caddy-static:/static
+      - ./data/caddy:/data
+      - ./data/caddy-config:/config
     networks:
       - internal
 
@@ -25,7 +24,6 @@ services:
     image: postgres:latest
     env_file:
       - .env
-    container_name: postgres-1
     hostname: ${POSTGRES_HOST}
     restart: always
     environment:
@@ -35,41 +33,5 @@ services:
       - "${POSTGRES_EXTERNAL_PORT}:5432"
     volumes:
       - ./data/postgres:/var/lib/postgresql:delegated
-      - ./init-dbs.sh:/docker-entrypoint-initdb.d/init-dbs.sh
     networks:
       - internal
-
-  minio:
-    image: minio/minio:latest
-    env_file:
-      - .env
-    container_name: minio-1
-    hostname: ${MINIO_HOST}
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    ports:
-      - "${MINIO_EXTERNAL_PORT_API}:9000"
-      - "${MINIO_EXTERNAL_PORT_DASH}:9001"
-    volumes:
-      - ./data/minio:/data
-    networks:
-      - internal
-
-  create-bucket:
-    image: minio/mc:latest
-    depends_on:
-      - minio
-    networks:
-      - internal
-    environment:
-      MC_HOST_minio: http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@minio:9000
-    entrypoint:
-      - sh
-      - -c
-      - |
-        until mc alias set minio http://${MINIO_HOST}:9000 "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}"; do sleep 1; done
-        mc mb minio/avatars || true
-        mc anonymous set download minio/avatars
