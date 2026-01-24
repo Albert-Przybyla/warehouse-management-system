@@ -9,7 +9,7 @@ from app.repositories.customer_repo import CustomerRepository
 from app.repositories.order_repo import OrderRepository
 from app.repositories.product_repo import ProductRepository
 from app.repositories.stock_repo import StockRepository
-from app.schemas.order import OrderCreate, OrderOut, OrderPriorityUpdate, OrderStatusUpdate
+from app.schemas.order import OrderCreate, OrderOut, OrderPriorityUpdate, OrderStatusUpdate, OrderUpdate
 from app.schemas.order_summary import OrderSummaryOut, OrderItemSummary
 from app.services.audit_service import AuditService
 from app.services.inventory_service import InventoryService
@@ -153,6 +153,30 @@ def update_status(
         audit_service=AuditService(AuditRepository(db)),
     )
     order = service.update_status(order, payload.status, user.id)
+    db.commit()
+    return OrderOut.model_validate(order)
+
+
+@router.patch("/{order_id}", response_model=OrderOut)
+def update_order(
+    order_id: int,
+    payload: OrderUpdate,
+    db: Session = Depends(get_db),
+    user=Depends(require_role(UserRole.ADMIN)),
+):
+    repo = OrderRepository(db)
+    order = repo.by_id(order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    service = OrderService(
+        orders_repo=repo,
+        customers_repo=CustomerRepository(db),
+        products_repo=ProductRepository(db),
+        inventory_service=InventoryService(StockRepository(db)),
+        audit_service=AuditService(AuditRepository(db)),
+    )
+    if payload.order_no:
+        order = service.update_order_no(order, payload.order_no, user.id)
     db.commit()
     return OrderOut.model_validate(order)
 
