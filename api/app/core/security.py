@@ -1,6 +1,7 @@
 from passlib.context import CryptContext
 
-pwd_ctx = CryptContext(schemes=["bcrypt"])
+# Use a backend-free scheme to avoid bcrypt build issues on some environments.
+pwd_ctx = CryptContext(schemes=["pbkdf2_sha256"])
 
 def hash_password(password: str) -> str:
     return pwd_ctx.hash(password)
