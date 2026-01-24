@@ -72,6 +72,18 @@ class OrderService:
         )
         return order
 
+    def update_order_no(self, order: Order, order_no: str, user_id: int):
+        if order.order_no != order_no:
+            order.order_no = order_no
+            self.audit_service.log(
+                "UPDATE_ORDER_NO",
+                user_id,
+                entity="order",
+                entity_id=order.id,
+                details={"order_no": order_no},
+            )
+        return order
+
     def cancel_order(self, order: Order, user_id: int):
         if order.status == OrderStatus.ANULOWANE:
             raise ValueError("Order already canceled")

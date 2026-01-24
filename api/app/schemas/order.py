@@ -25,6 +25,10 @@ class OrderStatusUpdate(BaseModel):
     status: OrderStatus
 
 
+class OrderUpdate(BaseModel):
+    order_no: str | None = None
+
+
 class OrderItemOut(BaseModel):
     id: int
     product_id: int
