@@ -1,7 +1,12 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import ProductsSection from "./sections/ProductsSection";
 import OrdersSection from "./sections/OrdersSection";
 import DeliveriesSection from "./sections/DeliveriesSection";
@@ -326,325 +331,329 @@ export default function Page() {
             loading={loading}
             onRefresh={refresh}
           >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-xl font-semibold">
-                    {view === "dashboard" && "Przeglad"}
-                    {view === "products" && "Produkty"}
-                    {view === "stock" && "Stany magazynowe"}
-                    {view === "deliveries" && "Dostawy"}
-                    {view === "orders" && "Zamowienia"}
-                    {view === "customers" && "Klienci"}
-                    {view === "suppliers" && "Dostawcy"}
-                    {view === "warehouses" && "Magazyny i lokacje"}
-                    {view === "search" && "Wyszukiwarka"}
-                    {view === "admin" && "Administracja"}
-                    {view === "reports" && "Raporty"}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Dane pobierane na zadanie, zeby nie obciazac przegladarki.
-                  </p>
-                </div>
-                {error && <p className="text-sm text-destructive">{error}</p>}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold">
+                  {view === "dashboard" && "Przeglad"}
+                  {view === "products" && "Produkty"}
+                  {view === "stock" && "Stany magazynowe"}
+                  {view === "deliveries" && "Dostawy"}
+                  {view === "orders" && "Zamowienia"}
+                  {view === "customers" && "Klienci"}
+                  {view === "suppliers" && "Dostawcy"}
+                  {view === "warehouses" && "Magazyny i lokacje"}
+                  {view === "search" && "Wyszukiwarka"}
+                  {view === "admin" && "Administracja"}
+                  {view === "reports" && "Raporty"}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Dane pobierane na zadanie, zeby nie obciazac przegladarki.
+                </p>
               </div>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+            </div>
 
-              {!allowedViews.has(view) && (
-                <Card className="border-0 bg-secondary/60">
-                  <CardHeader>
-                    <CardTitle className="text-base">Brak dostepu</CardTitle>
-                    <CardDescription>
-                      Twoja rola nie ma uprawnien do tej sekcji.
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
+            {!allowedViews.has(view) && (
+              <Card className="border-0 bg-secondary/60">
+                <CardHeader>
+                  <CardTitle className="text-base">Brak dostepu</CardTitle>
+                  <CardDescription>
+                    Twoja rola nie ma uprawnien do tej sekcji.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            )}
+
+            {view === "products" && (
+              <ProductsSection
+                role={role}
+                data={data}
+                loading={loading}
+                productSearch={productSearch}
+                setProductSearch={setProductSearch}
+                refresh={refresh}
+                canManageProducts={canManageProducts}
+                productModalOpen={productModalOpen}
+                setProductModalOpen={setProductModalOpen}
+                productForm={productForm}
+                setProductForm={setProductForm}
+                productSkuSuggestion={productSkuSuggestion}
+                productMessage={productMessage}
+                productEditForm={productEditForm}
+                setProductEditForm={setProductEditForm}
+                productEditMessage={productEditMessage}
+                handleCreateProduct={handleCreateProduct}
+                handleUpdateProduct={handleUpdateProduct}
+                handleDeleteProduct={handleDeleteProduct}
+                handleSelectProduct={handleSelectProduct}
+              />
+            )}
+
+            {view === "deliveries" && (
+              <DeliveriesSection
+                data={data}
+                loading={loading}
+                deliveryStatus={deliveryStatus}
+                setDeliveryStatus={setDeliveryStatus}
+                refresh={refresh}
+                setDeliveryModalOpen={setDeliveryModalOpen}
+                canManageDeliveries={canManageDeliveries}
+                deliverySelected={deliverySelected}
+                handleSelectDelivery={handleSelectDelivery}
+                deliveryPutawayForm={deliveryPutawayForm}
+                setDeliveryPutawayForm={setDeliveryPutawayForm}
+                deliveryInProgress={deliveryInProgress}
+                deliveryWarehouseId={deliveryWarehouseId}
+                setDeliveryWarehouseId={setDeliveryWarehouseId}
+                handleAddPutawayItem={handleAddPutawayItem}
+                handleRemovePutawayItem={handleRemovePutawayItem}
+                handlePutawayDelivery={handlePutawayDelivery}
+                canPutawayDelivery={canPutawayDelivery}
+                deliveryItemsSummary={deliveryItemsSummary}
+                lookups={{
+                  products: lookups.products,
+                  warehouses: lookups.warehouses,
+                }}
+                renderDeliveryStatus={(delivery) =>
+                  renderCell(delivery, "status")
+                }
+                deliveryModalOpen={deliveryModalOpen}
+                deliveryForm={deliveryForm}
+                setDeliveryForm={setDeliveryForm}
+                handleAddDeliveryItem={handleAddDeliveryItem}
+                handleRemoveDeliveryItem={handleRemoveDeliveryItem}
+                handleCreateDelivery={handleCreateDelivery}
+                deliveryMessage={deliveryMessage}
+                lookupsSuppliers={lookups.suppliers}
+              />
+            )}
+
+            {view === "stock" && (
+              <StockSection
+                lookups={{
+                  warehouses: lookups.warehouses,
+                  products: lookups.products,
+                  locations: lookups.locations,
+                }}
+                stockFilters={stockFilters}
+                setStockFilters={setStockFilters}
+                stockFilterLookup={stockFilterLookup}
+                setStockFilterLookup={setStockFilterLookup}
+                refresh={refresh}
+                loading={loading}
+                renderDataTable={renderDataTable}
+                stockTransferFilter={stockTransferFilter}
+                setStockTransferFilter={setStockTransferFilter}
+                stockTransferForm={stockTransferForm}
+                setStockTransferForm={setStockTransferForm}
+                canTransferStock={canTransferStock}
+                handleTransferStock={handleTransferStock}
+                stockTransferMessage={stockTransferMessage}
+              />
+            )}
+
+            {view === "orders" && (
+              <OrdersSection
+                role={role}
+                data={data}
+                loading={loading}
+                orderFilters={orderFilters}
+                setOrderFilters={setOrderFilters}
+                refresh={refresh}
+                setOrderModalOpen={setOrderModalOpen}
+                canCreateOrders={canCreateOrders}
+                orderSelected={orderSelected}
+                handleSelectOrder={handleSelectOrder}
+                orderModalOpen={orderModalOpen}
+                orderForm={orderForm}
+                setOrderForm={setOrderForm}
+                orderNoSuggestion={orderNoSuggestion}
+                orderMessage={orderMessage}
+                handleCreateOrder={handleCreateOrder}
+                handleAddOrderItem={handleAddOrderItem}
+                handleRemoveOrderItem={handleRemoveOrderItem}
+                lookups={{ customers: lookups.customers }}
+                orderAction={orderAction}
+                setOrderAction={setOrderAction}
+                canIssueOrders={canIssueOrders}
+                canCancelOrders={canCancelOrders}
+                canManageOrderPriority={canManageOrderPriority}
+                handleIssueOrder={handleIssueOrder}
+                handleCancelOrder={handleCancelOrder}
+                handleUpdatePriority={handleUpdatePriority}
+                orderDetailId={orderDetailId}
+                setOrderDetailId={setOrderDetailId}
+                handleFetchOrderSummary={handleFetchOrderSummary}
+                orderSummary={orderSummary}
+                orderStatusUpdate={orderStatusUpdate}
+                setOrderStatusUpdate={setOrderStatusUpdate}
+                handleUpdateOrderStatus={handleUpdateOrderStatus}
+                handleOrderMissingToDelivery={handleOrderMissingToDelivery}
+                orderQuickId={orderQuickId}
+                setOrderQuickId={setOrderQuickId}
+                handleQuickOrder={handleQuickOrder}
+                orderQuickMessage={orderQuickMessage}
+                orderQuickSummary={orderQuickSummary}
+                handleQuickToDelivery={handleQuickToDelivery}
+                orderEditForm={orderEditForm}
+                setOrderEditForm={setOrderEditForm}
+                orderEditMessage={orderEditMessage}
+                handleUpdateOrderNo={handleUpdateOrderNo}
+              />
+            )}
+
+            {view === "search" && (
+              <SearchSection
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                handleSearch={handleSearch}
+                loading={loading}
+                searchResults={searchResults}
+              />
+            )}
+
+            {view === "customers" && (
+              <CustomersSection
+                data={data}
+                loading={loading}
+                customerSearch={customerSearch}
+                setCustomerSearch={setCustomerSearch}
+                refresh={refresh}
+                canManageCustomers={canManageCustomers}
+                setCustomerModalOpen={setCustomerModalOpen}
+                customerEditForm={customerEditForm}
+                setCustomerEditForm={setCustomerEditForm}
+                handleUpdateCustomer={handleUpdateCustomer}
+                handleDeleteCustomer={handleDeleteCustomer}
+                handleSelectCustomer={handleSelectCustomer}
+                customerModalOpen={customerModalOpen}
+                customerForm={customerForm}
+                setCustomerForm={setCustomerForm}
+                handleCreateCustomer={handleCreateCustomer}
+                customerMessage={customerMessage}
+              />
+            )}
+
+            {view === "suppliers" && (
+              <SuppliersSection
+                data={data}
+                loading={loading}
+                supplierSearch={supplierSearch}
+                setSupplierSearch={setSupplierSearch}
+                refresh={refresh}
+                canManageSuppliers={canManageSuppliers}
+                setSupplierModalOpen={setSupplierModalOpen}
+                supplierEditForm={supplierEditForm}
+                setSupplierEditForm={setSupplierEditForm}
+                handleUpdateSupplier={handleUpdateSupplier}
+                handleDeleteSupplier={handleDeleteSupplier}
+                handleSelectSupplier={handleSelectSupplier}
+                supplierModalOpen={supplierModalOpen}
+                supplierForm={supplierForm}
+                setSupplierForm={setSupplierForm}
+                handleCreateSupplier={handleCreateSupplier}
+                supplierMessage={supplierMessage}
+              />
+            )}
+
+            {view === "warehouses" && (
+              <WarehousesSection
+                warehouseQuery={warehouseQuery}
+                setWarehouseQuery={setWarehouseQuery}
+                refresh={refresh}
+                loading={loading}
+                warehouseList={warehouseList}
+                warehouseSelected={warehouseSelected}
+                handleSelectWarehouse={handleSelectWarehouse}
+                warehouseTab={warehouseTab}
+                setWarehouseTab={setWarehouseTab}
+                warehouseDashboard={warehouseDashboard}
+                warehouseStockQuery={warehouseStockQuery}
+                setWarehouseStockQuery={setWarehouseStockQuery}
+                handleLoadWarehouseDetails={handleLoadWarehouseDetails}
+                warehouseStock={warehouseStock}
+                lowStockThreshold={lowStockThreshold}
+                handleLoadProductLocations={handleLoadProductLocations}
+                warehouseStockTotal={warehouseStockTotal}
+                warehouseProductLocations={warehouseProductLocations}
+                warehouseLocations={warehouseLocations}
+                warehouseLocationFilter={warehouseLocationFilter}
+                setWarehouseLocationFilter={setWarehouseLocationFilter}
+                locationForm={locationForm}
+                setLocationForm={setLocationForm}
+                locationFormMessage={locationFormMessage}
+                locationEditForm={locationEditForm}
+                setLocationEditForm={setLocationEditForm}
+                handleCreateLocation={handleCreateLocation}
+                handleUpdateLocation={handleUpdateLocation}
+                handleDeleteLocation={handleDeleteLocation}
+                locationSelectSearch={locationSelectSearch}
+                setLocationSelectSearch={setLocationSelectSearch}
+                warehouseView={warehouseView}
+                setWarehouseView={setWarehouseView}
+                handleSelectBlockLocation={handleSelectBlockLocation}
+                handleBlockLocation={handleBlockLocation}
+                canManageLocations={canManageLocations}
+                warehouseMessage={warehouseMessage}
+                layoutLock={layoutLock}
+                handleFetchLock={handleFetchLock}
+                handleAcquireLock={handleAcquireLock}
+                handleRefreshLock={handleRefreshLock}
+                handleReleaseLock={handleReleaseLock}
+                layoutLockMessage={layoutLockMessage}
+                canManageWarehouses={canManageWarehouses}
+                warehouseForm={warehouseForm}
+                setWarehouseForm={setWarehouseForm}
+                handleCreateWarehouse={handleCreateWarehouse}
+                warehouseFormMessage={warehouseFormMessage}
+                warehouseEditForm={warehouseEditForm}
+                setWarehouseEditForm={setWarehouseEditForm}
+                handleUpdateWarehouse={handleUpdateWarehouse}
+              />
+            )}
+
+            {view === "admin" && (
+              <AdminSection
+                adminUserForm={adminUserForm}
+                setAdminUserForm={setAdminUserForm}
+                adminUpdateForm={adminUpdateForm}
+                setAdminUpdateForm={setAdminUpdateForm}
+                handleCreateAdminUser={handleCreateAdminUser}
+                handleUpdateAdminUser={handleUpdateAdminUser}
+                canManageAdmin={canManageAdmin}
+                adminMessage={adminMessage}
+                loading={loading}
+              />
+            )}
+
+            {view === "reports" && (
+              <ReportsSection
+                reportType={reportType}
+                setReportType={setReportType}
+                reportFilters={reportFilters}
+                setReportFilters={setReportFilters}
+                refresh={refresh}
+                loading={loading}
+                pagination={pagination}
+                setPagination={setPagination}
+                getPaginationInfo={getPaginationInfo}
+              />
+            )}
+
+            <div className="grid gap-4">
+              {view === "dashboard" ? (
+                <DashboardSection data={data} />
+              ) : view === "warehouses" ||
+                view === "stock" ||
+                view === "products" ||
+                view === "deliveries" ||
+                view === "orders" ||
+                view === "customers" ||
+                view === "suppliers" ? null : (
+                renderDataTable()
               )}
-
-              {view === "products" && (
-                <ProductsSection
-                  role={role}
-                  data={data}
-                  loading={loading}
-                  productSearch={productSearch}
-                  setProductSearch={setProductSearch}
-                  refresh={refresh}
-                  canManageProducts={canManageProducts}
-                  productModalOpen={productModalOpen}
-                  setProductModalOpen={setProductModalOpen}
-                  productForm={productForm}
-                  setProductForm={setProductForm}
-                  productSkuSuggestion={productSkuSuggestion}
-                  productMessage={productMessage}
-                  productEditForm={productEditForm}
-                  setProductEditForm={setProductEditForm}
-                  productEditMessage={productEditMessage}
-                  handleCreateProduct={handleCreateProduct}
-                  handleUpdateProduct={handleUpdateProduct}
-                  handleDeleteProduct={handleDeleteProduct}
-                  handleSelectProduct={handleSelectProduct}
-                />
-              )}
-
-              {view === "deliveries" && (
-                <DeliveriesSection
-                  data={data}
-                  loading={loading}
-                  deliveryStatus={deliveryStatus}
-                  setDeliveryStatus={setDeliveryStatus}
-                  refresh={refresh}
-                  setDeliveryModalOpen={setDeliveryModalOpen}
-                  canManageDeliveries={canManageDeliveries}
-                  deliverySelected={deliverySelected}
-                  handleSelectDelivery={handleSelectDelivery}
-                  deliveryPutawayForm={deliveryPutawayForm}
-                  setDeliveryPutawayForm={setDeliveryPutawayForm}
-                  deliveryInProgress={deliveryInProgress}
-                  deliveryWarehouseId={deliveryWarehouseId}
-                  setDeliveryWarehouseId={setDeliveryWarehouseId}
-                  handleAddPutawayItem={handleAddPutawayItem}
-                  handleRemovePutawayItem={handleRemovePutawayItem}
-                  handlePutawayDelivery={handlePutawayDelivery}
-                  canPutawayDelivery={canPutawayDelivery}
-                  deliveryItemsSummary={deliveryItemsSummary}
-                  lookups={{ products: lookups.products, warehouses: lookups.warehouses }}
-                  renderDeliveryStatus={(delivery) => renderCell(delivery, "status")}
-                  deliveryModalOpen={deliveryModalOpen}
-                  deliveryForm={deliveryForm}
-                  setDeliveryForm={setDeliveryForm}
-                  handleAddDeliveryItem={handleAddDeliveryItem}
-                  handleRemoveDeliveryItem={handleRemoveDeliveryItem}
-                  handleCreateDelivery={handleCreateDelivery}
-                  deliveryMessage={deliveryMessage}
-                  lookupsSuppliers={lookups.suppliers}
-                />
-              )}
-
-
-              {view === "stock" && (
-                <StockSection
-                  lookups={{
-                    warehouses: lookups.warehouses,
-                    products: lookups.products,
-                    locations: lookups.locations,
-                  }}
-                  stockFilters={stockFilters}
-                  setStockFilters={setStockFilters}
-                  stockFilterLookup={stockFilterLookup}
-                  setStockFilterLookup={setStockFilterLookup}
-                  refresh={refresh}
-                  loading={loading}
-                  renderDataTable={renderDataTable}
-                  stockTransferFilter={stockTransferFilter}
-                  setStockTransferFilter={setStockTransferFilter}
-                  stockTransferForm={stockTransferForm}
-                  setStockTransferForm={setStockTransferForm}
-                  canTransferStock={canTransferStock}
-                  handleTransferStock={handleTransferStock}
-                  stockTransferMessage={stockTransferMessage}
-                />
-              )}
-
-              {view === "orders" && (
-                <OrdersSection
-                  role={role}
-                  data={data}
-                  loading={loading}
-                  orderFilters={orderFilters}
-                  setOrderFilters={setOrderFilters}
-                  refresh={refresh}
-                  setOrderModalOpen={setOrderModalOpen}
-                  canCreateOrders={canCreateOrders}
-                  orderSelected={orderSelected}
-                  handleSelectOrder={handleSelectOrder}
-                  orderModalOpen={orderModalOpen}
-                  orderForm={orderForm}
-                  setOrderForm={setOrderForm}
-                  orderNoSuggestion={orderNoSuggestion}
-                  orderMessage={orderMessage}
-                  handleCreateOrder={handleCreateOrder}
-                  handleAddOrderItem={handleAddOrderItem}
-                  handleRemoveOrderItem={handleRemoveOrderItem}
-                  lookups={{ customers: lookups.customers }}
-                  orderAction={orderAction}
-                  setOrderAction={setOrderAction}
-                  canIssueOrders={canIssueOrders}
-                  canCancelOrders={canCancelOrders}
-                  canManageOrderPriority={canManageOrderPriority}
-                  handleIssueOrder={handleIssueOrder}
-                  handleCancelOrder={handleCancelOrder}
-                  handleUpdatePriority={handleUpdatePriority}
-                  orderDetailId={orderDetailId}
-                  setOrderDetailId={setOrderDetailId}
-                  handleFetchOrderSummary={handleFetchOrderSummary}
-                  orderSummary={orderSummary}
-                  orderStatusUpdate={orderStatusUpdate}
-                  setOrderStatusUpdate={setOrderStatusUpdate}
-                  handleUpdateOrderStatus={handleUpdateOrderStatus}
-                  handleOrderMissingToDelivery={handleOrderMissingToDelivery}
-                  orderQuickId={orderQuickId}
-                  setOrderQuickId={setOrderQuickId}
-                  handleQuickOrder={handleQuickOrder}
-                  orderQuickMessage={orderQuickMessage}
-                  orderQuickSummary={orderQuickSummary}
-                  handleQuickToDelivery={handleQuickToDelivery}
-                  orderEditForm={orderEditForm}
-                  setOrderEditForm={setOrderEditForm}
-                  orderEditMessage={orderEditMessage}
-                  handleUpdateOrderNo={handleUpdateOrderNo}
-                />
-              )}
-
-              {view === "search" && (
-                <SearchSection
-                  searchQuery={searchQuery}
-                  setSearchQuery={setSearchQuery}
-                  handleSearch={handleSearch}
-                  loading={loading}
-                  searchResults={searchResults}
-                />
-              )}
-
-              {view === "customers" && (
-                <CustomersSection
-                  data={data}
-                  loading={loading}
-                  customerSearch={customerSearch}
-                  setCustomerSearch={setCustomerSearch}
-                  refresh={refresh}
-                  canManageCustomers={canManageCustomers}
-                  setCustomerModalOpen={setCustomerModalOpen}
-                  customerEditForm={customerEditForm}
-                  setCustomerEditForm={setCustomerEditForm}
-                  handleUpdateCustomer={handleUpdateCustomer}
-                  handleDeleteCustomer={handleDeleteCustomer}
-                  handleSelectCustomer={handleSelectCustomer}
-                  customerModalOpen={customerModalOpen}
-                  customerForm={customerForm}
-                  setCustomerForm={setCustomerForm}
-                  handleCreateCustomer={handleCreateCustomer}
-                  customerMessage={customerMessage}
-                />
-              )}
-
-              {view === "suppliers" && (
-                <SuppliersSection
-                  data={data}
-                  loading={loading}
-                  supplierSearch={supplierSearch}
-                  setSupplierSearch={setSupplierSearch}
-                  refresh={refresh}
-                  canManageSuppliers={canManageSuppliers}
-                  setSupplierModalOpen={setSupplierModalOpen}
-                  supplierEditForm={supplierEditForm}
-                  setSupplierEditForm={setSupplierEditForm}
-                  handleUpdateSupplier={handleUpdateSupplier}
-                  handleDeleteSupplier={handleDeleteSupplier}
-                  handleSelectSupplier={handleSelectSupplier}
-                  supplierModalOpen={supplierModalOpen}
-                  supplierForm={supplierForm}
-                  setSupplierForm={setSupplierForm}
-                  handleCreateSupplier={handleCreateSupplier}
-                  supplierMessage={supplierMessage}
-                />
-              )}
-
-              {view === "warehouses" && (
-                <WarehousesSection
-                  warehouseQuery={warehouseQuery}
-                  setWarehouseQuery={setWarehouseQuery}
-                  refresh={refresh}
-                  loading={loading}
-                  warehouseList={warehouseList}
-                  warehouseSelected={warehouseSelected}
-                  handleSelectWarehouse={handleSelectWarehouse}
-                  warehouseTab={warehouseTab}
-                  setWarehouseTab={setWarehouseTab}
-                  warehouseDashboard={warehouseDashboard}
-                  warehouseStockQuery={warehouseStockQuery}
-                  setWarehouseStockQuery={setWarehouseStockQuery}
-                  handleLoadWarehouseDetails={handleLoadWarehouseDetails}
-                  warehouseStock={warehouseStock}
-                  lowStockThreshold={lowStockThreshold}
-                  handleLoadProductLocations={handleLoadProductLocations}
-                  warehouseStockTotal={warehouseStockTotal}
-                  warehouseProductLocations={warehouseProductLocations}
-                  warehouseLocations={warehouseLocations}
-                  warehouseLocationFilter={warehouseLocationFilter}
-                  setWarehouseLocationFilter={setWarehouseLocationFilter}
-                  locationForm={locationForm}
-                  setLocationForm={setLocationForm}
-                  locationFormMessage={locationFormMessage}
-                  locationEditForm={locationEditForm}
-                  setLocationEditForm={setLocationEditForm}
-                  handleCreateLocation={handleCreateLocation}
-                  handleUpdateLocation={handleUpdateLocation}
-                  handleDeleteLocation={handleDeleteLocation}
-                  locationSelectSearch={locationSelectSearch}
-                  setLocationSelectSearch={setLocationSelectSearch}
-                  warehouseView={warehouseView}
-                  setWarehouseView={setWarehouseView}
-                  handleSelectBlockLocation={handleSelectBlockLocation}
-                  handleBlockLocation={handleBlockLocation}
-                  canManageLocations={canManageLocations}
-                  warehouseMessage={warehouseMessage}
-                  layoutLock={layoutLock}
-                  handleFetchLock={handleFetchLock}
-                  handleAcquireLock={handleAcquireLock}
-                  handleRefreshLock={handleRefreshLock}
-                  handleReleaseLock={handleReleaseLock}
-                  layoutLockMessage={layoutLockMessage}
-                  canManageWarehouses={canManageWarehouses}
-                  warehouseForm={warehouseForm}
-                  setWarehouseForm={setWarehouseForm}
-                  handleCreateWarehouse={handleCreateWarehouse}
-                  warehouseFormMessage={warehouseFormMessage}
-                  warehouseEditForm={warehouseEditForm}
-                  setWarehouseEditForm={setWarehouseEditForm}
-                  handleUpdateWarehouse={handleUpdateWarehouse}
-                />
-              )}
-
-              {view === "admin" && (
-                <AdminSection
-                  adminUserForm={adminUserForm}
-                  setAdminUserForm={setAdminUserForm}
-                  adminUpdateForm={adminUpdateForm}
-                  setAdminUpdateForm={setAdminUpdateForm}
-                  handleCreateAdminUser={handleCreateAdminUser}
-                  handleUpdateAdminUser={handleUpdateAdminUser}
-                  canManageAdmin={canManageAdmin}
-                  adminMessage={adminMessage}
-                  loading={loading}
-                />
-              )}
-
-              {view === "reports" && (
-                <ReportsSection
-                  reportType={reportType}
-                  setReportType={setReportType}
-                  reportFilters={reportFilters}
-                  setReportFilters={setReportFilters}
-                  refresh={refresh}
-                  loading={loading}
-                  pagination={pagination}
-                  setPagination={setPagination}
-                  getPaginationInfo={getPaginationInfo}
-                />
-              )}
-
-              <div className="grid gap-4">
-                {view === "dashboard" ? (
-                  <DashboardSection data={data} />
-                ) : view === "warehouses" ||
-                  view === "stock" ||
-                  view === "products" ||
-                  view === "deliveries" ||
-                  view === "orders" ||
-                  view === "customers" ||
-                  view === "suppliers" ? null : (
-                  renderDataTable()
-                )}
-              </div>
-                      </AppShell>
+            </div>
+          </AppShell>
         )}
         <datalist id="product-skus">
           {lookups.products.map((product) => (
@@ -656,13 +665,15 @@ export default function Page() {
         <datalist id="location-codes">
           {lookups.locations
             .filter((location) =>
-              deliveryWarehouseId ? String(location.warehouse_id) === deliveryWarehouseId : true
+              deliveryWarehouseId
+                ? String(location.warehouse_id) === deliveryWarehouseId
+                : true,
             )
             .map((location) => (
-            <option key={location.id} value={location.code}>
-              {location.code}
-            </option>
-          ))}
+              <option key={location.id} value={location.code}>
+                {location.code}
+              </option>
+            ))}
         </datalist>
       </div>
     </main>
