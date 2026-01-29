@@ -1,4 +1,4 @@
-include .env
+sinclude .env
 export
 
 DC := docker compose -f $(COMPOSE_FILE)
