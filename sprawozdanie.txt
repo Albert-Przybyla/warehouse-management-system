@@ -1,0 +1,466 @@
+SPRAWOZDANIE TECHNICZNE – WMS (Warehouse Management System)
+
+1) PRZEGLĄD PROJEKTU
+Projekt to system WMS z backendem REST API (FastAPI + PostgreSQL) i frontendem web (Next.js). Backend realizuje logikę magazynową (dostawy, zamówienia, stany, magazyny, lokacje, audyt), a frontend zapewnia prosty, używalny panel do obsługi procesów magazynowych. Komunikacja między warstwami odbywa się przez JSON/HTTP. Autoryzacja oparta jest o JWT i role (MAGAZYNIER, KIEROWNIK, ADMIN).
+
+2) STRUKTURA REPOZYTORIUM (WYSOKIE POZIOMY)
+- api/                 -> backend FastAPI (routery, serwisy, repozytoria, schematy)
+- web/                 -> frontend Next.js (React), UI + sekcje funkcjonalne
+- docker-compose.*     -> uruchomienie usług (PostgreSQL, Caddy, itp.)
+- makefile             -> ułatwione komendy uruchomieniowe
+- data/, scripts/      -> materiały pomocnicze
+- WMS.sql              -> schemat danych (seed / struktura DB)
+
+3) BACKEND – ARCHITEKTURA WARSTWOWA
+Backend jest rozdzielony na warstwy:
+- API / routery (api/app/api/v1/*.py) – definicja endpointów
+- Serwisy (api/app/services/*) – logika biznesowa
+- Repozytoria (api/app/repositories/*) – operacje na DB
+- Schematy (api/app/schemas/*) – DTO/serializacja
+- Modele (api/app/models/*) – SQLAlchemy ORM
+
+Wzorzec: endpoint → service → repository.
+
+4) POŁĄCZENIE Z BAZĄ DANYCH (PostgreSQL)
+Konfiguracja bazy jest pobierana z .env. Sposób budowy URL:
+
+[Fragment: api/app/core/config.py]
+```
+class Settings(BaseModel):
+    postgres_host: str
+    postgres_user: str
+    postgres_pass: str
+    postgres_port: int
+    postgres_db: str
+
+    @property
+    def database_url(self) -> str:
+        return (
+            f"postgresql+psycopg://"
+            f"{self.postgres_user}:{self.postgres_pass}"
+            f"@{self.postgres_host}:{self.postgres_port}"
+            f"/{self.postgres_db}"
+        )
+```
+
+Silnik SQLAlchemy:
+
+[Fragment: api/app/core/database.py]
+```
+engine = create_engine(
+    settings.database_url,
+    echo=True,
+)
+
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False,
+)
+```
+
+5) AUTORYZACJA I BEZPIECZEŃSTWO
+- JWT (HS256) w nagłówku Authorization: Bearer <token>.
+- Role: MAGAZYNIER, KIEROWNIK, ADMIN.
+- Hash haseł: PBKDF2-SHA256 (passlib) – backend-friendly, bez zależności bcrypt.
+
+[Fragment: api/app/core/security.py]
+```
+pwd_ctx = CryptContext(schemes=["pbkdf2_sha256"])
+
+def hash_password(password: str) -> str:
+    return pwd_ctx.hash(password)
+
+def verify_password(password: str, hash: str) -> bool:
+    return pwd_ctx.verify(password, hash)
+```
+
+Weryfikacja tokena:
+
+[Fragment: api/app/api/deps.py]
+```
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    payload = decode_token(token)
+    user_id = payload.get("sub")
+    user = UserRepository(db).by_id(int(user_id))
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return user
+```
+
+6) CORS I STARTUP
+Backend dopuszcza połączenia z `http://localhost:3000` (frontend) i seeduje użytkowników przy starcie.
+
+[Fragment: api/app/main.py]
+```
+app = FastAPI(title="AV WMS")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.on_event("startup")
+def seed_on_startup():
+    db = SessionLocal()
+    try:
+        seed_default_users(db)
+    finally:
+        db.close()
+```
+
+7) KLUCZOWE MODUŁY BACKENDU
+- Auth: /auth/login, /auth/me
+- Produkty: /products (CRUD)
+- Lokacje: /locations (CRUD, blokada)
+- Magazyny: /warehouses, dashboard, stock
+- Dostawy (PU-01): /deliveries, /deliveries/{id}/putaway
+- Zamówienia (PU-02): /orders, /orders/{id}/issue
+- Raporty: /reports/*
+- Admin: /admin/users, /admin/backup
+- Audyt: /reports/audit + logowanie zdarzeń
+
+8) LOGOWANIE OPERACJI (AUDYT)
+System zapisuje zdarzenia do audit_log (np. LOGIN_OK, CREATE_DELIVERY, PUTAWAY_DELIVERY, ISSUE_ORDER, UPDATE_PRIORITY, itp.) – realizowane przez AuditService.
+
+9) PRZYJĘCIE I ZMAGAZYNOWANIE DOSTAW (PU-01)
+Proces:
+1. Tworzymy dostawę (document_no, supplier_id, items)
+2. Zmagazynowanie: wybór SKU + qty + kod lokacji
+3. Aktualizacja stock_positions
+
+Ważny aspekt: rozróżnienie lokacji po magazynie, żeby uniknąć konfliktu kodów.
+
+[Fragment: api/app/services/delivery_service.py]
+```
+locations = (
+    self.locations_repo.by_code_in_warehouse(item.location_code, item.warehouse_id)
+    if item.warehouse_id
+    else self.locations_repo.by_code(item.location_code)
+)
+if len(locations) > 1:
+    raise ValueError(f"Location code ambiguous: {item.location_code}")
+```
+
+10) POBRANIE ZAMÓWIEŃ (PU-02)
+- Tworzenie order + order_items
+- Issue: walidacja dostępności stocku, aktualizacja qty_issued
+- Statusy: OCZEKUJACE / CZESCIOWO / ZREALIZOWANE
+
+11) FRONTEND – TECH STACK
+- Next.js (App Router)
+- React (client components)
+- Fetch do API backendu
+- UI: proste tabele, zakładki i formularze
+
+Główna strona agreguje sekcje (Produkty, Dostawy, Zamówienia, Magazyny, Lokacje, Stany, Raporty, Admin itd.).
+Logika danych i API znajduje się w hooku `useWmsData`.
+
+12) DANE I LOOKUPY
+Frontend pobiera słowniki (customers, suppliers, products, warehouses, locations) i używa ich w dropdownach.
+Przykład: w dostawach kod lokacji jest filtrowany po wybranym magazynie.
+
+13) DOSTAWY – WYBÓR LOKACJI
+W UI dodano dropdown lokacji, który filtruje lokacje po wybranym magazynie.
+To rozwiązuje problem z powtarzającymi się kodami lokacji w różnych magazynach.
+
+14) STRUKTURA UI (PRZYKŁADOWA)
+- Dostawy: lista + formularz przyjęcia + zmagazynowanie
+- Zamówienia: lista + tworzenie + realizacja
+- Magazyny: lista + podsumowanie + lokacje + stany
+- Produkty: tabela + edycja + dodawanie
+
+15) DOCKER I URUCHAMIANIE
+- Backend i Postgres uruchamiane przez docker-compose.dev.yml
+- Backend uruchamiany lokalnie przez uvicorn
+- Frontend uruchamiany przez npm run dev
+
+Przykładowe kroki:
+1) make up
+2) cd api && source .venv/bin/activate && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+3) cd web && npm install && npm run dev
+
+16) PRZYKŁADY ENDPOINTÓW (DO TESTÓW)
+- Logowanie:
+POST /auth/login
+{
+  "login": "admin",
+  "password": "admin123"
+}
+
+- Dostawa:
+POST /deliveries
+{
+  "supplier_id": 1,
+  "document_no": "DOST-001",
+  "items": [
+    {"sku": "SKU-001", "qty": 10}
+  ]
+}
+
+- Zmagazynowanie:
+POST /deliveries/{id}/putaway
+{
+  "items": [
+    {"sku": "SKU-001", "qty": 10, "location_code": "A-001", "warehouse_id": 2}
+  ]
+}
+
+17) REZULTAT KOŃCOWY
+System dostarcza pełny backend z kluczowymi procesami WMS (dostawy, zamówienia, stany, magazyny), audytem oraz rolami. Frontend zapewnia prostą, ale używalną warstwę operacyjną. Projekt jest gotowy do dalszej rozbudowy (np. layout 2D, WMS flow, optymalizacja UI).
+
+18) STRUKTURA BAZY DANYCH – KLUCZOWE TABELE (OPIS)
+Uwaga: poniższy opis skupia się na kluczowych tabelach funkcjonalnych i ich roli w procesach WMS.
+
+- users
+  - Przechowuje konta użytkowników (login, password_hash, rola, is_active).
+  - Wykorzystywana w JWT i RBAC.
+
+- warehouses
+  - Lista magazynów (nazwa/kod, opis).
+
+- locations
+  - Lokacje magazynowe przypisane do magazynu (warehouse_id, code, kind, is_blocked).
+  - Kod lokacji może się powtarzać między magazynami, dlatego w putaway używamy pary (warehouse_id + code).
+
+- products
+  - Katalog produktów (sku, name, type, brand, model).
+
+- stock_positions
+  - Stany magazynowe per produkt i lokacja (product_id, location_id, quantity).
+  - Wykorzystywane w procesach zwiększania/zmniejszania stanu.
+
+- deliveries
+  - Nagłówek dostawy (document_no, supplier_id, status, created_by, approved_by, approved_at).
+
+- delivery_items
+  - Pozycje dostawy (delivery_id, product_id, qty).
+
+- orders
+  - Nagłówek zamówienia (order_no, customer_id, status, priority).
+
+- order_items
+  - Pozycje zamówień (order_id, product_id, qty, qty_issued).
+
+- suppliers / customers
+  - Słowniki kontrahentów.
+
+- audit_log
+  - Log działań i zdarzeń systemu (akcja, user_id, entity, entity_id, details, timestamp).
+
+19) PRZYKŁADY ZAPYTAŃ SQL (DEBUG / RAPORTY)
+
+1) Stany magazynowe dla magazynu:
+```
+SELECT p.sku, p.name, l.code AS location_code, sp.quantity
+FROM stock_positions sp
+JOIN products p ON p.id = sp.product_id
+JOIN locations l ON l.id = sp.location_id
+WHERE l.warehouse_id = 2
+ORDER BY p.sku, l.code;
+```
+
+2) Top produkty (największe ilości):
+```
+SELECT p.sku, p.name, SUM(sp.quantity) AS total_qty
+FROM stock_positions sp
+JOIN products p ON p.id = sp.product_id
+GROUP BY p.sku, p.name
+ORDER BY total_qty DESC
+LIMIT 10;
+```
+
+3) Braki (low stock poniżej 5):
+```
+SELECT p.sku, p.name, SUM(sp.quantity) AS total_qty
+FROM stock_positions sp
+JOIN products p ON p.id = sp.product_id
+GROUP BY p.sku, p.name
+HAVING SUM(sp.quantity) < 5
+ORDER BY total_qty ASC;
+```
+
+4) Dostawy w trakcie:
+```
+SELECT id, document_no, supplier_id, status, created_at
+FROM deliveries
+WHERE status = 'W_TRAKCIE'
+ORDER BY created_at DESC;
+```
+
+5) Zamówienia niezrealizowane:
+```
+SELECT id, order_no, status, priority
+FROM orders
+WHERE status IN ('OCZEKUJACE', 'ZREALIZOWANE_CZESCIOWO')
+ORDER BY priority DESC, created_at DESC;
+```
+
+6) Audyt logowań i operacji:
+```
+SELECT action, user_id, entity, entity_id, created_at
+FROM audit_log
+ORDER BY created_at DESC
+LIMIT 50;
+```
+
+20) RELACJE (FK) – OPISOWY DIAGRAM POWIAZAŃ
+Relacje kluczowe w bazie:
+- users (1) —— (N) audit_log
+  audit_log.user_id -> users.id
+
+- warehouses (1) —— (N) locations
+  locations.warehouse_id -> warehouses.id
+
+- products (1) —— (N) stock_positions
+  stock_positions.product_id -> products.id
+
+- locations (1) —— (N) stock_positions
+  stock_positions.location_id -> locations.id
+
+- suppliers (1) —— (N) deliveries
+  deliveries.supplier_id -> suppliers.id
+
+- deliveries (1) —— (N) delivery_items
+  delivery_items.delivery_id -> deliveries.id
+
+- products (1) —— (N) delivery_items
+  delivery_items.product_id -> products.id
+
+- customers (1) —— (N) orders
+  orders.customer_id -> customers.id
+
+- orders (1) —— (N) order_items
+  order_items.order_id -> orders.id
+
+- products (1) —— (N) order_items
+  order_items.product_id -> products.id
+
+Powyższe relacje pozwalają:
+- powiązać pozycje dostaw i zamówień z produktami,
+- agregować stany per magazyn/lokację,
+- budować raporty i audyt.
+
+21) INDEKSY I WYDAJNOŚĆ (ZALECENIA)
+Dla wydajności (szczególnie przy dużej liczbie danych) warto mieć indeksy na kolumnach:
+- users.login (unikalny)
+- products.sku (unikalny)
+- locations.code, locations.warehouse_id (częste filtrowanie i wybór)
+- stock_positions.product_id, stock_positions.location_id
+- deliveries.status, deliveries.created_at
+- orders.status, orders.priority, orders.created_at
+- audit_log.created_at, audit_log.user_id
+
+Przykładowe indeksy:
+```
+CREATE UNIQUE INDEX idx_users_login ON users(login);
+CREATE UNIQUE INDEX idx_products_sku ON products(sku);
+CREATE INDEX idx_locations_warehouse_code ON locations(warehouse_id, code);
+CREATE INDEX idx_stock_product ON stock_positions(product_id);
+CREATE INDEX idx_stock_location ON stock_positions(location_id);
+CREATE INDEX idx_deliveries_status_created ON deliveries(status, created_at DESC);
+CREATE INDEX idx_orders_status_priority ON orders(status, priority);
+CREATE INDEX idx_audit_created ON audit_log(created_at DESC);
+```
+
+22) ENUMY / STATUSY (LOGIKA BIZNESOWA)
+Najważniejsze statusy i ich znaczenie:
+
+Dostawy (DeliveryStatus):
+- W_TRAKCIE        -> dostawa przyjęta, nie zmagazynowana
+- ZATWIERDZONA     -> dostawa zmagazynowana (stock zwiększony)
+- ANULOWANA        -> dostawa anulowana
+
+Zamówienia (OrderStatus):
+- OCZEKUJACE
+- ZREALIZOWANE_CZESCIOWO
+- ZREALIZOWANE
+- ANULOWANE
+
+Te statusy są wykorzystywane przez endpointy i UI do kontroli stanu procesu.
+
+23) PRZYKŁADY PRZECHODZENIA STATUSÓW
+Dostawy:
+- W_TRAKCIE -> ZATWIERDZONA (po zmagazynowaniu)
+- W_TRAKCIE -> ANULOWANA (po anulowaniu)
+
+Zamówienia:
+- OCZEKUJACE -> ZREALIZOWANE_CZESCIOWO (gdy część pozycji wydana)
+- OCZEKUJACE -> ZREALIZOWANE (gdy wszystko wydane)
+- ZREALIZOWANE_CZESCIOWO -> ZREALIZOWANE
+- dowolny -> ANULOWANE (z wyjątkiem już zakończonych, zależnie od logiki)
+
+24) WSKAZÓWKI DLA DALSZEJ ROZBUDOWY
+- Wprowadzenie unikalności kodów lokacji per magazyn (unikalny index).
+- Dodanie trackingu partii/serii produktów (lot/batch).
+- Automatyczne rozmieszczanie dostaw (algorytm slottingu).
+- Dalsza normalizacja tabel (np. historyczne ruchy stocku).
+
+25) ERD (ASCII) – UPROSZCZONY DIAGRAM
+
+users (id)
+  |----< audit_log (user_id)
+
+warehouses (id)
+  |----< locations (warehouse_id)
+               |----< stock_positions (location_id)
+products (id) --^          ^
+  |----< delivery_items (product_id)
+  |----< order_items (product_id)
+
+suppliers (id) ----< deliveries (supplier_id)
+                         |----< delivery_items (delivery_id)
+
+customers (id) ----< orders (customer_id)
+                        |----< order_items (order_id)
+
+26) CHECKLISTA TESTÓW (SMOKE TEST)
+Poniżej szybka lista testów do weryfikacji podstawowych funkcji:
+
+AUTH
+- [ ] POST /auth/login poprawny login/hasło -> token
+- [ ] POST /auth/login błędne hasło -> 401 + audit
+- [ ] GET /auth/me z tokenem -> dane usera
+
+PRODUKTY
+- [ ] GET /products -> lista
+- [ ] POST /products -> nowy produkt (KIEROWNIK/ADMIN)
+- [ ] PATCH /products/{id} -> edycja
+
+LOKACJE
+- [ ] POST /locations -> dodanie lokacji (ADMIN)
+- [ ] PATCH /locations/{id} -> edycja (ADMIN)
+- [ ] PATCH /locations/{id}/block -> blokada (KIEROWNIK/ADMIN)
+
+STANY
+- [ ] GET /stock -> filtr po warehouse_id/product_id
+
+DOSTAWY
+- [ ] POST /deliveries -> nowa dostawa
+- [ ] POST /deliveries/{id}/putaway -> zmagazynowanie (warehouse_id + location_code)
+- [ ] POST /deliveries/{id}/cancel -> anulowanie
+
+ZAMÓWIENIA
+- [ ] POST /orders -> nowe zamówienie
+- [ ] POST /orders/{id}/issue -> wydanie (stock maleje)
+- [ ] PATCH /orders/{id}/priority
+
+MAGAZYNY
+- [ ] GET /warehouses -> lista
+- [ ] GET /warehouses/{id}/dashboard -> KPI i listy
+
+ADMIN
+- [ ] GET /admin/users
+- [ ] POST /admin/users
+- [ ] PATCH /admin/users/{id}
+
+RAPORTY
+- [ ] GET /reports/stock
+- [ ] GET /reports/deliveries
+- [ ] GET /reports/orders
+- [ ] GET /reports/audit

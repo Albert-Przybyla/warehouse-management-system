@@ -29,6 +29,13 @@ class LocationRepository:
     def by_code(self, code: str):
         return self.db.query(Location).filter_by(code=code).all()
 
+    def by_code_in_warehouse(self, code: str, warehouse_id: int):
+        return (
+            self.db.query(Location)
+            .filter_by(code=code, warehouse_id=warehouse_id)
+            .all()
+        )
+
     def save(self, location: Location):
         self.db.add(location)
         return location

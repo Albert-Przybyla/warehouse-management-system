@@ -68,7 +68,11 @@ class DeliveryService:
             product = self.products_repo.by_sku(item.sku)
             if not product:
                 raise ValueError(f"Product not found for SKU: {item.sku}")
-            locations = self.locations_repo.by_code(item.location_code)
+            locations = (
+                self.locations_repo.by_code_in_warehouse(item.location_code, item.warehouse_id)
+                if item.warehouse_id
+                else self.locations_repo.by_code(item.location_code)
+            )
             if not locations:
                 raise ValueError(f"Location not found for code: {item.location_code}")
             if len(locations) > 1:

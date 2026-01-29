@@ -21,6 +21,7 @@ class DeliveryPutawayItem(BaseModel):
     sku: str
     qty: int
     location_code: str
+    warehouse_id: int | None = None
 
 
 class DeliveryPutawayRequest(BaseModel):
